@@ -1,0 +1,62 @@
+name: Compile Check (no signing)
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - "Sources/**"
+      - "Resources/**"
+      - "project.yml"
+      - ".github/workflows/compile-check.yml"
+
+jobs:
+  compile:
+    runs-on: macos-14
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Toolchain
+        run: xcodebuild -version && sw_vers
+
+      - name: Install XcodeGen
+        run: brew install xcodegen
+
+      - name: Generate project
+        run: xcodegen generate && ls -la
+
+      - name: Build for simulator (unsigned)
+        run: |
+          set -o pipefail
+          xcodebuild build \
+            -project CarbmsOwner.xcodeproj \
+            -scheme CarbmsOwner \
+            -configuration Release \
+            -sdk iphonesimulator \
+            -destination 'generic/platform=iOS Simulator' \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            | tail -40
+
+      - name: Build device archive (unsigned)
+        run: |
+          set -o pipefail
+          xcodebuild archive \
+            -project CarbmsOwner.xcodeproj \
+            -scheme CarbmsOwner \
+            -configuration Release \
+            -destination 'generic/platform=iOS' \
+            -archivePath build/unsigned.xcarchive \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGN_IDENTITY="" \
+            | tail -40
+          ls -la build/unsigned.xcarchive/Products/Applications/
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: unsigned-build
+          path: build/unsigned.xcarchive
+          if-no-files-found: warn
