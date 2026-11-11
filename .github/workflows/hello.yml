@@ -1,9 +1,0 @@
-name: Hello Runner
-on:
-  workflow_dispatch:
-
-jobs:
-  hello:
-    runs-on: macos-13
-    steps:
-      - run: echo "runner ok" && uname -a
